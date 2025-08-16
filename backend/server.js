@@ -5,33 +5,20 @@ const cors = require('cors');
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB connected successfully'))
-.catch((err) => console.error('MongoDB connection error:', err));
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
-// Example route
+const Movie = require('./models/movie');
+
 app.get('/', (req, res) => {
-  res.send('Backend server is running!');
+  res.send('Backend server running!');
 });
 
-// Example POST route for movies
-// Uncomment this if you want to save movies to MongoDB
-/*
-const mongoose = require('mongoose');
-const movieSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-});
-const Movie = mongoose.model('Movie', movieSchema);
-
+// Add a new movie
 app.post('/movies', async (req, res) => {
   try {
     const movie = new Movie(req.body);
@@ -41,7 +28,16 @@ app.post('/movies', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-*/
+
+// Get all movies (for booking page)
+app.get('/movies', async (req, res) => {
+  try {
+    const movies = await Movie.find().sort({ createdAt: -1 });
+    res.json(movies);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
