@@ -1,75 +1,265 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  Image,
+  ImageBackground,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { useRouter } from "expo-router";
+import useFetch from "@/services/usefetch";
+import { fetchMovies, fetchNowPlayingMovies } from "@/services/api";
+import SearchBar from "@/components/searchBar";
+import MovieCard from "@/components/movieCard";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const BG_IMAGE_URL =
+  "https://mir-s3-cdn-cf.behance.net/project_modules/fs/8470be155522753.635686ea23ebf.jpg";
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+// Utility to chunk array into rows
+function chunkArray(array, size) {
+  const chunked = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunked.push(array.slice(i, i + size));
+  }
+  return chunked;
 }
 
+const Index = () => {
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Fetch search results when searching
+  const {
+    data: searchedMovies,
+    loading: searchLoading,
+    error: searchError,
+    refetch: refetchSearch,
+  } = useFetch(() => fetchMovies({ query: searchTerm }), false);
+
+  // Fetch latest "Now Playing" movies for static section
+  const {
+    data: latestMovies,
+    loading: latestLoading,
+    error: latestError,
+  } = useFetch(fetchNowPlayingMovies);
+
+  const handleSearchSubmit = () => {
+    refetchSearch();
+  };
+
+  const renderMovie = ({ item }: { item: any }) => (
+    <View style={styles.movieCard}>
+      <MovieCard
+        title={item.title}
+        poster={
+          item.poster_path
+            ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
+            : undefined
+        }
+        description={item.overview}
+        onBook={() => alert(`Booking: ${item.title}`)}
+        onDetails={() =>
+          router.push({ pathname: `/${item.id}`, params: { id: item.id } })
+        }
+      />
+    </View>
+  );
+
+  // Latest Movies Manual Grid (4 per row)
+  const renderLatestMoviesGrid = () => {
+    if (!latestMovies || latestMovies.length === 0) return null;
+    const rows = chunkArray(latestMovies, 4);
+    return rows.map((row, idx) => (
+      <View style={styles.latestMoviesRow} key={`latest-movies-row-${idx}`}>
+        {row.map((item) => (
+          <View style={styles.staticCard} key={item.id}>
+            <Image
+              source={{
+                uri: item.poster_path
+                  ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
+                  : "https://via.placeholder.com/100x145.png?text=No+Image",
+              }}
+              style={styles.staticPoster}
+              resizeMode="cover"
+            />
+            <Text style={styles.staticTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+          </View>
+        ))}
+      </View>
+    ));
+  };
+
+  return (
+    <ImageBackground
+      source={{ uri: BG_IMAGE_URL }}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay} />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.header}>Movie Explorer</Text>
+
+        {/* Search Bar */}
+        <SearchBar
+          placeholder="Search for movies..."
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          onSubmitEditing={handleSearchSubmit}
+        />
+
+        {/* Latest Movies Grid (manual 4-column grid) */}
+        <Text style={styles.sectionHeader}>Latest Movies</Text>
+        {latestLoading ? (
+          <ActivityIndicator color="#6c63ff" size="small" />
+        ) : latestError ? (
+          <Text style={styles.errorText}>Error loading latest movies</Text>
+        ) : (
+          <View style={styles.latestMoviesList}>
+            {renderLatestMoviesGrid()}
+          </View>
+        )}
+
+        {/* Spacing */}
+        <View style={{ height: 32 }} />
+
+        {/* Search Results Listing in grid 3 columns */}
+        {searchLoading ? (
+          <ActivityIndicator
+            color="#6c63ff"
+            size="large"
+            style={{ marginTop: 40 }}
+          />
+        ) : searchError ? (
+          <Text style={styles.errorText}>Error: {searchError.message}</Text>
+        ) : searchedMovies && searchedMovies.length > 0 ? (
+          // Manual grid for 3 columns, chunk and render rows
+          chunkArray(searchedMovies, 3).map((row, idx) => (
+            <View style={styles.searchResultsRow} key={`search-row-${idx}`}>
+              {row.map((item) => (
+                <View style={styles.movieCard} key={item.id}>
+                  <MovieCard
+                    title={item.title}
+                    poster={
+                      item.poster_path
+                        ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
+                        : undefined
+                    }
+                    description={item.overview}
+                    onBook={() => alert(`Booking: ${item.title}`)}
+                    onDetails={() =>
+                      router.push({
+                        pathname: `/${item.id}`,
+                        params: { id: item.id },
+                      })
+                    }
+                  />
+                </View>
+              ))}
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noData}>No movies found.</Text>
+        )}
+      </ScrollView>
+    </ImageBackground>
+  );
+};
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  background: { flex: 1, width: "100%", height: "100%" },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(26,26,46,0.72)",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingBottom: 40, // Added for scroll area bottom space
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  header: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#e0e0ff",
+    marginBottom: 20,
+    textAlign: "center",
+    textShadowColor: "#6c63ff",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 6,
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#6c63ff",
+    marginBottom: 12,
+    marginTop: 16,
+    textAlign: "center",
+  },
+  latestMoviesList: {
+    alignSelf: "center",
+    width: "100%",
+    marginBottom: 24,
+  },
+  latestMoviesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 22,
+    paddingHorizontal: 8,
+  },
+  staticCard: {
+    marginHorizontal: 6,
+    backgroundColor: "#23233a",
+    borderRadius: 14,
+    padding: 10,
+    alignItems: "center",
+    minWidth: 90,
+    maxWidth: 120,
+    flex: 1,
+  },
+  staticPoster: {
+    width: 110,
+    height: 170,
+    borderRadius: 10,
+    backgroundColor: "#333",
+  },
+  staticTitle: {
+    color: "#e0e0ff",
+    fontWeight: "700",
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  searchResultsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  movieCard: {
+    flex: 1,
+    marginHorizontal: 4,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: "#ff6b6b",
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 40,
+  },
+  noData: {
+    color: "#8888aa",
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 40,
   },
 });
+
+export default Index;
