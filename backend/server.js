@@ -2,17 +2,22 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// Connect MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
 const Movie = require('./models/movie');
+
+// Serve static folder for posters
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.send('Backend server running!');
@@ -29,11 +34,20 @@ app.post('/movies', async (req, res) => {
   }
 });
 
-// Get all movies (for booking page)
+// Get all movies
 app.get('/movies', async (req, res) => {
   try {
     const movies = await Movie.find().sort({ createdAt: -1 });
-    res.json(movies);
+
+    // Format poster as absolute URL
+    const formattedMovies = movies.map(m => ({
+      ...m._doc,
+      poster: m.poster 
+        ? `${process.env.BASE_URL || 'http://localhost:5000'}/${m.poster.replace(/^\/+/, '')}` 
+        : null
+    }));
+
+    res.json(formattedMovies);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

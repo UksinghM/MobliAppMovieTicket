@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Linking, StyleSheet, Image } from 'react-native';
 
 const API_URL = 'http://localhost:5000';  // Change to your backend URL / IP
 
@@ -23,15 +23,24 @@ export default function BookingPage() {
       ) : (
         movies.map(movie => (
           <View key={movie._id} style={styles.card}>
-            <Text style={styles.title}>{movie.title}</Text>
-            <Text style={styles.about}>{movie.about}</Text>
-            <Text style={styles.rating}>Rating: {movie.rating}/5</Text>
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => Linking.openURL(movie.ticketLink)}
-            >
-              <Text style={styles.linkButtonText}>Buy Ticket</Text>
-            </TouchableOpacity>
+            {movie.poster && (
+              <Image
+                source={{ uri: movie.poster }}
+                style={styles.poster}
+                resizeMode="cover"
+              />
+            )}
+            <View style={styles.movieInfo}>
+              <Text style={styles.title} numberOfLines={1}>{movie.title}</Text>
+              <Text style={styles.about} numberOfLines={3}>{movie.about}</Text>
+              <Text style={styles.rating}>Rating: {movie.rating}/5</Text>
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => Linking.openURL(movie.ticketLink)}
+              >
+                <Text style={styles.linkButtonText}>Buy Ticket</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))
       )}
@@ -40,23 +49,16 @@ export default function BookingPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 24, backgroundColor: '#f8fafc' },
-  header: { fontSize: 26, fontWeight: 'bold', color: '#56208e', marginBottom: 24, textAlign: 'center' },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#56208e',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 6
-  },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#56208e', marginBottom: 8 },
-  about: { fontSize: 14, color: '#4b5563', marginBottom: 8 },
-  rating: { fontSize: 14, color: '#ff6f61', fontWeight: 'bold', marginBottom: 10 },
-  linkButton: { backgroundColor: '#ff6f61', borderRadius: 8, padding: 10, alignItems: 'center' },
-  linkButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  error: { color: 'red', fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  noData: { textAlign: 'center', color: '#888' },
+  container: { flexGrow: 1, paddingHorizontal: 20, paddingVertical: 30, backgroundColor: '#f9f9ff' },
+  header: { fontSize: 28, fontWeight: '900', color: '#4b257a', marginBottom: 30, textAlign: 'center' },
+  card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 24, elevation: 6 },
+  poster: { width: 100, height: 150, borderRadius: 14, backgroundColor: '#ddd', marginRight: 16 },
+  movieInfo: { flex: 1, justifyContent: 'space-between' },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#4b257a', marginBottom: 6 },
+  about: { fontSize: 15, color: '#6b6b7a', marginBottom: 12, lineHeight: 20 },
+  rating: { fontSize: 14, color: '#c96c6c', fontWeight: '700', marginBottom: 12 },
+  linkButton: { backgroundColor: '#6f42c1', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  linkButtonText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
+  error: { color: '#e03131', fontWeight: '700', marginBottom: 14, textAlign: 'center', fontSize: 16 },
+  noData: { textAlign: 'center', color: '#9999aa', fontSize: 16 },
 });
