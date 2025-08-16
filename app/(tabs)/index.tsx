@@ -8,6 +8,8 @@ import {
   ImageBackground,
   Platform,
   ScrollView,
+  Linking,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import useFetch from "@/services/usefetch";
@@ -31,7 +33,7 @@ const Index = () => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch search results when searching
+  // Fetch search results manually on demand
   const {
     data: searchedMovies,
     loading: searchLoading,
@@ -46,11 +48,31 @@ const Index = () => {
     error: latestError,
   } = useFetch(fetchNowPlayingMovies);
 
+  // Trigger search only on submit
   const handleSearchSubmit = () => {
-    refetchSearch();
+    if (searchTerm.trim().length > 0) {
+      refetchSearch();
+    }
   };
 
-  const renderMovie = ({ item }: { item: any }) => (
+  // Helper function to open external booking site with error check
+  const openBooking = async (title) => {
+    // Encode movie title for URL query
+    const encodedTitle = encodeURIComponent(title.trim());
+    // Example BookMyShow Mumbai search URL with movie title pre-filled
+    const url = `https://in.bookmyshow.com/explore/movies-mumbai?q=${encodedTitle}`;
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert(
+        "Error",
+        "Cannot open booking site. The URL may be invalid or unsupported."
+      );
+    }
+  };
+
+  const renderMovie = ({ item }) => (
     <View style={styles.movieCard}>
       <MovieCard
         title={item.title}
@@ -60,9 +82,13 @@ const Index = () => {
             : undefined
         }
         description={item.overview}
-        onBook={() => alert(`Booking: ${item.title}`)}
+        // Open BookMyShow search page for the movie title in Mumbai on "Book Now"
+        onBook={() => openBooking(item.title)}
         onDetails={() =>
-          router.push({ pathname: `/${item.id}`, params: { id: item.id } })
+          router.push({
+            pathname: `/${item.id}`,
+            params: { id: item.id },
+          })
         }
       />
     </View>
@@ -123,9 +149,7 @@ const Index = () => {
         ) : latestError ? (
           <Text style={styles.errorText}>Error loading latest movies</Text>
         ) : (
-          <View style={styles.latestMoviesList}>
-            {renderLatestMoviesGrid()}
-          </View>
+          <View style={styles.latestMoviesList}>{renderLatestMoviesGrid()}</View>
         )}
 
         {/* Spacing */}
@@ -154,7 +178,7 @@ const Index = () => {
                         : undefined
                     }
                     description={item.overview}
-                    onBook={() => alert(`Booking: ${item.title}`)}
+                    onBook={() => openBooking(item.title)}
                     onDetails={() =>
                       router.push({
                         pathname: `/${item.id}`,
