@@ -16,18 +16,37 @@ import useFetch from "@/services/usefetch";
 import { fetchMovies, fetchNowPlayingMovies } from "@/services/api";
 import SearchBar from "@/components/searchBar";
 import MovieCard from "@/components/movieCard";
+import axios from "axios";
 
+// ---- CONFIG ----
 const BG_IMAGE_URL =
   "https://mir-s3-cdn-cf.behance.net/project_modules/fs/8470be155522753.635686ea23ebf.jpg";
 
-// Utility to chunk array into rows
-function chunkArray(array, size) {
+const BACKEND_URL = "http://localhost:5000/api"; // Replace with your backend IP if on device
+const userId = "user123"; // Replace with real user id from auth/context
+
+// Utility to chunk array into rows (for grid display)
+function chunkArray(array: any[], size: number) {
   const chunked = [];
   for (let i = 0; i < array.length; i += size) {
     chunked.push(array.slice(i, i + size));
   }
   return chunked;
 }
+
+// --- Save search to backend (MongoDB) ---
+const saveSearchToHistory = async (movie: any, searchTerm: string) => {
+  try {
+    await axios.post(`${BACKEND_URL}/search`, {
+      userId,
+      searchTerm,
+      movie,
+    });
+    // You can show a toast/alert if needed: Alert.alert('Search saved!');
+  } catch (err: any) {
+    // Optional: Alert.alert('Error saving search', err.message);
+  }
+};
 
 const Index = () => {
   const router = useRouter();
@@ -55,11 +74,12 @@ const Index = () => {
     }
   };
 
-  // Helper function to open external booking site with error check
-  const openBooking = async (title) => {
-    // Encode movie title for URL query
-    const encodedTitle = encodeURIComponent(title.trim());
-    // Example BookMyShow Mumbai search URL with movie title pre-filled
+  // Helper to open BookMyShow and save search
+  const openBooking = async (movie: any) => {
+    // Save to history whenever "Book Now" is pressed
+    await saveSearchToHistory(movie, searchTerm || movie.title);
+
+    const encodedTitle = encodeURIComponent(movie.title.trim());
     const url = `https://in.bookmyshow.com/explore/movies-mumbai?q=${encodedTitle}`;
     const supported = await Linking.canOpenURL(url);
     if (supported) {
@@ -72,7 +92,17 @@ const Index = () => {
     }
   };
 
-  const renderMovie = ({ item }) => (
+  // Called when user asks for movie details
+  const handleDetails = async (movie: any) => {
+    await saveSearchToHistory(movie, searchTerm || movie.title);
+    router.push({
+      pathname: `/${movie.id}`,
+      params: { id: movie.id },
+    });
+  };
+
+  // Render single search/movie card and integrate save on user interaction
+  const renderMovie = ({ item }: { item: any }) => (
     <View style={styles.movieCard}>
       <MovieCard
         title={item.title}
@@ -82,14 +112,8 @@ const Index = () => {
             : undefined
         }
         description={item.overview}
-        // Open BookMyShow search page for the movie title in Mumbai on "Book Now"
-        onBook={() => openBooking(item.title)}
-        onDetails={() =>
-          router.push({
-            pathname: `/${item.id}`,
-            params: { id: item.id },
-          })
-        }
+        onBook={() => openBooking(item)}
+        onDetails={() => handleDetails(item)}
       />
     </View>
   );
@@ -170,6 +194,7 @@ const Index = () => {
             <View style={styles.searchResultsRow} key={`search-row-${idx}`}>
               {row.map((item) => (
                 <View style={styles.movieCard} key={item.id}>
+                  {/* Save to history every time details or booking is opened */}
                   <MovieCard
                     title={item.title}
                     poster={
@@ -178,13 +203,8 @@ const Index = () => {
                         : undefined
                     }
                     description={item.overview}
-                    onBook={() => openBooking(item.title)}
-                    onDetails={() =>
-                      router.push({
-                        pathname: `/${item.id}`,
-                        params: { id: item.id },
-                      })
-                    }
+                    onBook={() => openBooking(item)}
+                    onDetails={() => handleDetails(item)}
                   />
                 </View>
               ))}
@@ -207,7 +227,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingBottom: 40, // Added for scroll area bottom space
+    paddingBottom: 40,
   },
   header: {
     fontSize: 32,
